@@ -1,0 +1,7 @@
+.env
+seen_articles.json
+bot.log
+__pycache__/
+*.pyc
+.venv/
+venv/

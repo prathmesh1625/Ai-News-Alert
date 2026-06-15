@@ -1,0 +1,4 @@
+twilio
+groq
+requests
+python-dotenv
