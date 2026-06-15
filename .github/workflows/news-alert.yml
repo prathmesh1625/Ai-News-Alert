@@ -6,6 +6,10 @@ on:
     - cron: "*/15 * * * *"
   workflow_dispatch: {}   # lets you run it manually from the Actions tab
 
+# Run all JavaScript actions on Node.js 24 (silences the Node 20 deprecation).
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 # Never run two polls at once (avoids duplicate sends / state races)
 concurrency:
   group: news-alert
@@ -29,10 +33,11 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      # Restore the "already seen" list saved by the previous run.
+      # Restores the latest saved "seen" list at start, and saves the updated
+      # one automatically at the end of the job (post-step).
       # First-ever run finds nothing -> bot seeds silently, sends nothing.
-      - name: Restore seen-articles state
-        uses: actions/cache/restore@v4
+      - name: Persist seen-articles state
+        uses: actions/cache@v4
         with:
           path: seen_articles.json
           key: seen-articles-${{ github.run_id }}-${{ github.run_attempt }}
@@ -50,11 +55,3 @@ jobs:
           NEWS_API_KEY: ${{ secrets.NEWS_API_KEY }}
           POLL_INTERVAL_MINUTES: "15"
         run: python main.py
-
-      # Save the updated state for the next run.
-      - name: Save seen-articles state
-        if: always()
-        uses: actions/cache/save@v4
-        with:
-          path: seen_articles.json
-          key: seen-articles-${{ github.run_id }}-${{ github.run_attempt }}
