@@ -1,0 +1,60 @@
+name: AI News Alert
+
+on:
+  schedule:
+    # Every 15 minutes. GitHub may delay scheduled runs at peak times.
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}   # lets you run it manually from the Actions tab
+
+# Never run two polls at once (avoids duplicate sends / state races)
+concurrency:
+  group: news-alert
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # Restore the "already seen" list saved by the previous run.
+      # First-ever run finds nothing -> bot seeds silently, sends nothing.
+      - name: Restore seen-articles state
+        uses: actions/cache/restore@v4
+        with:
+          path: seen_articles.json
+          key: seen-articles-${{ github.run_id }}
+          restore-keys: |
+            seen-articles-
+
+      - name: Run one poll cycle
+        env:
+          RUN_ONCE: "1"
+          TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
+          TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+          TWILIO_WHATSAPP_FROM: ${{ secrets.TWILIO_WHATSAPP_FROM }}
+          TWILIO_WHATSAPP_TO: ${{ secrets.TWILIO_WHATSAPP_TO }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          NEWS_API_KEY: ${{ secrets.NEWS_API_KEY }}
+          POLL_INTERVAL_MINUTES: "15"
+        run: python main.py
+
+      # Save the updated state for the next run.
+      - name: Save seen-articles state
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: seen_articles.json
+          key: seen-articles-${{ github.run_id }}

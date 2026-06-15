@@ -1,3 +1,5 @@
+import os
+import sys
 import time
 import logging
 
@@ -65,7 +67,25 @@ def initial_index(tracker: ArticleTracker):
     log.info(f"Seeded {len(urls)} URLs. Now watching for NEW articles only.")
 
 
+def run_once():
+    """Single poll cycle — used by GitHub Actions / cron."""
+    log.info("AI News Alert Bot — single run (cron mode)")
+    tracker = ArticleTracker().load()
+
+    if not tracker._seen:
+        # No prior state (first ever run): seed only, send nothing.
+        initial_index(tracker)
+        return
+
+    try:
+        count = run_poll(tracker)
+        log.info(f"✓ Sent {count} message(s)." if count else "No new articles.")
+    except Exception as e:
+        log.error(f"Unhandled error: {e}", exc_info=True)
+
+
 def main():
+    """Continuous loop — used when running locally / on an always-on host."""
     log.info(f"AI News Alert Bot starting — poll every {POLL_INTERVAL_MINUTES} min")
 
     tracker = ArticleTracker().load()
@@ -90,4 +110,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    if os.getenv("RUN_ONCE") == "1" or "--once" in sys.argv:
+        run_once()
+    else:
+        main()
