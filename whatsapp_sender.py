@@ -28,6 +28,9 @@ def format_message(article: dict, summary: str, article_type: str = "news") -> s
     if article_type == "tool":
         header = "🛠️ *New AI Tool / Launch*"
         icon = "🚀"
+    elif article_type == "update":
+        header = "⬆️ *AI Update*"
+        icon = "✨"
     else:
         header = "🤖 *AI News Alert*"
         icon = "📝"
