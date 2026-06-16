@@ -27,6 +27,13 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(b"AI News Alert is running.\n")
 
+    def do_HEAD(self):
+        # Uptime pingers (e.g. UptimeRobot) probe with HEAD by default; without
+        # this the base handler returns 501 and the monitor reports "down".
+        self.send_response(200)
+        self.send_header("Content-Type", "text/plain")
+        self.end_headers()
+
     def log_message(self, *args):
         # Silence per-request access logs (the keep-alive pinger is noisy).
         pass
