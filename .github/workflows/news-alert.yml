@@ -2,7 +2,10 @@ name: AI News Alert
 
 on:
   schedule:
-    # Every 15 minutes. GitHub may delay scheduled runs at peak times.
+    # We ask for every 15 min, but GitHub heavily throttles free scheduled cron
+    # (often 2-3h between actual runs). That's fine: LOOKBACK_MINUTES (6h) means
+    # each run still catches everything published since the last one, and the
+    # tracker dedups so nothing is ever sent twice.
     - cron: "*/15 * * * *"
   workflow_dispatch: {}   # lets you run it manually from the Actions tab
 
@@ -36,12 +39,15 @@ jobs:
       # Restores the latest saved "seen" list at start, and saves the updated
       # one automatically at the end of the job (post-step).
       # First-ever run finds nothing -> bot seeds silently, sends nothing.
-      - name: Persist seen-articles state
+      - name: Persist bot state (seen articles + Twilio daily budget)
         uses: actions/cache@v4
         with:
-          path: seen_articles.json
-          key: seen-articles-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            seen_articles.json
+            bot_state.json
+          key: bot-state-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
+            bot-state-
             seen-articles-
 
       - name: Run one poll cycle
@@ -54,4 +60,10 @@ jobs:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           NEWS_API_KEY: ${{ secrets.NEWS_API_KEY }}
           POLL_INTERVAL_MINUTES: "15"
+          # Look back 6h so throttled/delayed runs never miss fresh news.
+          LOOKBACK_MINUTES: "360"
+          # Twilio free-tier guardrails.
+          MAX_SENDS_PER_DAY: "12"
+          MAX_NEWS_PER_RUN: "6"
+          FALLBACK_GAP_HOURS: "4"
         run: python main.py

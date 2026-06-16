@@ -3,11 +3,13 @@ import sys
 import time
 import logging
 
-from config import POLL_INTERVAL_MINUTES
+from config import POLL_INTERVAL_MINUTES, LOOKBACK_MINUTES, MAX_NEWS_PER_RUN
 from news_fetcher import fetch_all
 from summarizer import quick_filter, summarize
 from whatsapp_sender import send, format_message
 from tracker import ArticleTracker
+from state import SendBudget
+import evergreen
 
 logging.basicConfig(
     level=logging.INFO,
@@ -22,7 +24,8 @@ log = logging.getLogger(__name__)
 SEND_DELAY_SECONDS = 3
 
 
-def run_poll(tracker: ArticleTracker) -> int:
+def _send_news(tracker: ArticleTracker, budget: SendBudget) -> int:
+    """Priority 1: fresh AI news / tools. Returns how many were sent."""
     articles = fetch_all()
     log.info(f"Fetched {len(articles)} total articles from all sources.")
 
@@ -31,6 +34,13 @@ def run_poll(tracker: ArticleTracker) -> int:
 
     sent_count = 0
     for article in new:
+        if sent_count >= MAX_NEWS_PER_RUN:
+            log.info(f"  Hit MAX_NEWS_PER_RUN ({MAX_NEWS_PER_RUN}) — leaving the rest for next run.")
+            break
+        if not budget.can_send():
+            log.info("  Daily Twilio budget reached — stopping news sends.")
+            break
+
         url = article["url"]
         tracker.mark(url)  # mark before processing so a crash won't re-send
 
@@ -49,12 +59,55 @@ def run_poll(tracker: ArticleTracker) -> int:
         if send(message):
             log.info(f"    → WhatsApp sent OK")
             sent_count += 1
+            budget.record_send()
             time.sleep(SEND_DELAY_SECONDS)
         else:
             log.warning(f"    → WhatsApp send FAILED")
 
-    tracker.save()
     return sent_count
+
+
+def _send_fallback(tracker: ArticleTracker, budget: SendBudget) -> int:
+    """
+    Priority 2 (existing tools) then 3 (tips). Only fires when there was no
+    fresh news, the daily budget allows it, and enough time has passed since
+    the last fallback. Sends at most one item per run.
+    """
+    if not budget.can_send():
+        log.info("Fallback skipped — daily Twilio budget reached.")
+        return 0
+    if not budget.fallback_due():
+        log.info("Fallback skipped — too soon since the last one (FALLBACK_GAP_HOURS).")
+        return 0
+
+    item = evergreen.pick_unseen(tracker)
+    if item is None:
+        log.info("Fallback skipped — every evergreen item already sent this week.")
+        return 0
+
+    tracker.mark(item["url"])
+    message = format_message(item, item["summary"], item["type"])
+    if send(message):
+        log.info(f"  [FALLBACK {item['type']}] sent: {item['title'][:60]}")
+        budget.record_send()
+        budget.record_fallback()
+        return 1
+
+    log.warning(f"  [FALLBACK] send FAILED: {item['title'][:60]}")
+    return 0
+
+
+def run_poll(tracker: ArticleTracker, budget: SendBudget) -> int:
+    news_sent = _send_news(tracker, budget)
+
+    fallback_sent = 0
+    if news_sent == 0:
+        log.info("No fresh news this run — trying evergreen fallback.")
+        fallback_sent = _send_fallback(tracker, budget)
+
+    tracker.save()
+    budget.save()
+    return news_sent + fallback_sent
 
 
 def initial_index(tracker: ArticleTracker):
@@ -77,9 +130,12 @@ def run_once():
         initial_index(tracker)
         return
 
+    budget = SendBudget().load()
+    log.info(f"Twilio budget: {budget.remaining()} of {budget.sent_today + budget.remaining()} sends left today.")
+
     try:
-        count = run_poll(tracker)
-        log.info(f"✓ Sent {count} message(s)." if count else "No new articles.")
+        count = run_poll(tracker, budget)
+        log.info(f"✓ Sent {count} message(s)." if count else "Nothing sent this run.")
     except Exception as e:
         log.error(f"Unhandled error: {e}", exc_info=True)
 
@@ -96,12 +152,13 @@ def main():
     while True:
         log.info("─" * 50)
         log.info("Polling sources...")
+        budget = SendBudget().load()
         try:
-            count = run_poll(tracker)
+            count = run_poll(tracker, budget)
             if count:
                 log.info(f"✓ Sent {count} message(s) to WhatsApp.")
             else:
-                log.info("No new articles this cycle — sleeping.")
+                log.info("Nothing sent this cycle — sleeping.")
         except Exception as e:
             log.error(f"Unhandled error: {e}", exc_info=True)
 

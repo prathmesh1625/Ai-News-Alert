@@ -7,6 +7,12 @@ item with an LLM (Groq / Llama 3.3), and delivers a clean message via Twilio Wha
 ## Features
 
 - **Real-time** — polls every 15 min (configurable) and sends new items as they appear
+- **Survives cron throttling** — each run looks back `LOOKBACK_MINUTES` (default 6h), so even when
+  GitHub Actions delays a scheduled run by hours, no fresh news is missed (the tracker dedups)
+- **Never silent** — when there's no fresh news, it sends fallback value, in priority order:
+  1. fresh AI news / tools, then 2. an **existing tool worth knowing** (Unsloth, Ollama, …),
+  then 3. a **practical AI tip** (e.g. cutting Claude Code token usage)
+- **Twilio-budget aware** — hard daily message cap + spacing between fallbacks keep you on the free tier
 - **Tool vs News** — detects and labels new AI tool/product launches separately from general news
 - **Smart summaries** — 2–3 sentence digest per article via Groq (free tier)
 - **No duplicates** — tracks seen articles, seeds existing news on first run so you aren't flooded
@@ -55,8 +61,22 @@ item with an LLM (Groq / Llama 3.3), and delivers a clean message via Twilio Wha
 | `news_fetcher.py` | RSS + Hacker News + NewsAPI fetching |
 | `summarizer.py` | Keyword pre-filter + Groq summary & tool/news classification |
 | `whatsapp_sender.py` | Twilio message formatting + send |
-| `tracker.py` | Dedup of already-seen articles |
+| `evergreen.py` | Curated fallback library: existing tools + AI tips (priority 2 & 3) |
+| `state.py` | Persisted Twilio daily budget + fallback spacing (`bot_state.json`) |
+| `tracker.py` | Dedup of already-seen articles (and fallback items; recycles weekly) |
 | `config.py` | Loads env vars |
+
+## Twilio free-tier tuning
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `MAX_SENDS_PER_DAY` | 12 | Hard cap on WhatsApp messages per UTC day |
+| `MAX_NEWS_PER_RUN` | 6 | Max fresh-news items in one run (stops a burst eating the cap) |
+| `FALLBACK_GAP_HOURS` | 4 | Min hours between existing-tool / tip fallbacks |
+| `LOOKBACK_MINUTES` | 360 | How far back each run scans (set above your worst cron gap) |
+
+> Twilio's WhatsApp **sandbox** session closes after 24h of no messages from you — if sends
+> start failing, re-send the `join <code>` message to reopen it.
 
 ## Notes
 

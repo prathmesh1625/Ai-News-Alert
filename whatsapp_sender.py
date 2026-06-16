@@ -31,6 +31,12 @@ def format_message(article: dict, summary: str, article_type: str = "news") -> s
     elif article_type == "update":
         header = "⬆️ *AI Update*"
         icon = "✨"
+    elif article_type == "evergreen_tool":
+        header = "🧰 *Tool Worth Knowing*"
+        icon = "💡"
+    elif article_type == "tip":
+        header = "🎯 *AI Tip of the Day*"
+        icon = "💬"
     else:
         header = "🤖 *AI News Alert*"
         icon = "📝"

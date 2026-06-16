@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 
-from config import NEWS_API_KEY, POLL_INTERVAL_MINUTES
+from config import NEWS_API_KEY, LOOKBACK_MINUTES
 
 log = logging.getLogger(__name__)
 
@@ -218,10 +218,11 @@ def fetch_newsapi_articles(lookback_minutes: int) -> list[dict]:
 
 def fetch_all(lookback_minutes: int | None = None) -> list[dict]:
     """
-    Uses a 2× poll interval window so articles at the boundary of two poll
-    cycles are never missed. Tracker handles dedup so overlap is harmless.
+    Uses a wide lookback window (LOOKBACK_MINUTES, default 6h) so news published
+    between throttled/delayed cron runs is still caught. Tracker handles dedup,
+    so the overlap is harmless — nothing is ever sent twice.
     """
-    window = lookback_minutes if lookback_minutes is not None else max(POLL_INTERVAL_MINUTES * 2, 60)
+    window = lookback_minutes if lookback_minutes is not None else LOOKBACK_MINUTES
 
     rss = fetch_rss_articles(window)
     api = fetch_newsapi_articles(window)

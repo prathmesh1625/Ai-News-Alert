@@ -1,5 +1,6 @@
 .env
 seen_articles.json
+bot_state.json
 bot.log
 __pycache__/
 *.pyc
