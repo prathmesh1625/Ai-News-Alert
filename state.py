@@ -1,17 +1,16 @@
 """
 Tiny persisted state for Twilio budget control.
 
-Lives in bot_state.json (cached by GitHub Actions alongside seen_articles.json)
-so limits survive across cron runs. Two jobs:
+Lives in bot_state.json (persisted via the storage backend alongside
+seen_articles.json) so limits survive across runs/restarts. Two jobs:
   • cap total WhatsApp messages per UTC day  -> protect the Twilio free tier
   • space out evergreen fallbacks            -> avoid spammy quiet-period sends
 """
 
-import json
-import os
 import logging
 from datetime import datetime, timezone
 
+import storage
 from config import MAX_SENDS_PER_DAY, FALLBACK_GAP_HOURS
 
 log = logging.getLogger(__name__)
@@ -32,32 +31,23 @@ class SendBudget:
         self.last_fallback_iso: str | None = None
 
     def load(self) -> "SendBudget":
-        if os.path.exists(STATE_FILE):
-            try:
-                with open(STATE_FILE) as f:
-                    data = json.load(f)
-                self.last_fallback_iso = data.get("last_fallback_iso")
-                # Reset the daily counter when the UTC day rolls over.
-                if data.get("day") == self.day:
-                    self.sent_today = int(data.get("sent_today", 0))
-            except Exception as e:
-                log.warning(f"Could not read {STATE_FILE}: {e}")
+        data = storage.read_json(STATE_FILE, None)
+        if data:
+            self.last_fallback_iso = data.get("last_fallback_iso")
+            # Reset the daily counter when the UTC day rolls over.
+            if data.get("day") == self.day:
+                self.sent_today = int(data.get("sent_today", 0))
         return self
 
     def save(self):
-        try:
-            with open(STATE_FILE, "w") as f:
-                json.dump(
-                    {
-                        "day": self.day,
-                        "sent_today": self.sent_today,
-                        "last_fallback_iso": self.last_fallback_iso,
-                    },
-                    f,
-                    indent=2,
-                )
-        except Exception as e:
-            log.warning(f"Could not write {STATE_FILE}: {e}")
+        storage.write_json(
+            STATE_FILE,
+            {
+                "day": self.day,
+                "sent_today": self.sent_today,
+                "last_fallback_iso": self.last_fallback_iso,
+            },
+        )
 
     # ── budget checks ──────────────────────────────────────────────────────
     def can_send(self) -> bool:

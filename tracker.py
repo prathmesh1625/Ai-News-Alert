@@ -1,6 +1,6 @@
-import json
-import os
 from datetime import datetime, timedelta
+
+import storage
 
 TRACKER_FILE = "seen_articles.json"
 
@@ -10,9 +10,7 @@ class ArticleTracker:
         self._seen: dict[str, str] = {}
 
     def load(self):
-        if os.path.exists(TRACKER_FILE):
-            with open(TRACKER_FILE, "r") as f:
-                self._seen = json.load(f)
+        self._seen = storage.read_json(TRACKER_FILE, {})
         return self
 
     def is_seen(self, url: str) -> bool:
@@ -28,5 +26,4 @@ class ArticleTracker:
     def save(self):
         cutoff = (datetime.utcnow() - timedelta(days=7)).isoformat()
         self._seen = {k: v for k, v in self._seen.items() if v > cutoff}
-        with open(TRACKER_FILE, "w") as f:
-            json.dump(self._seen, f, indent=2)
+        storage.write_json(TRACKER_FILE, self._seen)
