@@ -1,13 +1,13 @@
 name: AI News Alert
 
 on:
-  schedule:
-    # We ask for every 15 min, but GitHub heavily throttles free scheduled cron
-    # (often 2-3h between actual runs). That's fine: LOOKBACK_MINUTES (6h) means
-    # each run still catches everything published since the last one, and the
-    # tracker dedups so nothing is ever sent twice.
-    - cron: "*/15 * * * *"
-  workflow_dispatch: {}   # lets you run it manually from the Actions tab
+  # Scheduled polling is DISABLED: the live deployment runs on Render (a always-on
+  # web service kept awake by UptimeRobot), which polls every 15 min. Running the
+  # cron here too would double-send WhatsApp alerts since the two keep separate
+  # state. Re-enable this block only if you stop using Render.
+  # schedule:
+  #   - cron: "*/15 * * * *"
+  workflow_dispatch: {}   # lets you still run it manually from the Actions tab
 
 # Run all JavaScript actions on Node.js 24 (silences the Node 20 deprecation).
 env:
