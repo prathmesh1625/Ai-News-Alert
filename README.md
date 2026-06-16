@@ -46,6 +46,33 @@ item with an LLM (Groq / Llama 3.3), and delivers a clean message via Twilio Wha
    python main.py
    ```
 
+## Deploy on Render (free)
+
+GitHub Actions throttles free scheduled cron to ~2-5h between runs, which is too
+slow for the 2-hour fallback cadence. Render's free **web service** can run the
+poll loop continuously instead. (Render's worker/cron plans are paid; the free
+web service is the only free option, so `web.py` wraps the loop in a tiny health
+server.)
+
+1. Push this repo to GitHub.
+2. On [render.com](https://render.com): **New → Blueprint**, pick this repo. It
+   reads `render.yaml` and creates a free web service running `python web.py`.
+3. In the service's **Environment** tab, fill in the secret values
+   (`TWILIO_*`, `GROQ_API_KEY`, `NEWS_API_KEY`) — they're marked `sync: false`
+   so they're never committed.
+4. **Keep it awake.** Free web services sleep after 15 min of no traffic. Create
+   a free [UptimeRobot](https://uptimerobot.com) HTTP monitor that pings your
+   Render URL every 5 minutes — this keeps the loop running 24/7 (≈730 hrs/mo,
+   within the 750-hr free limit).
+
+> ⚠️ Run **either** Render **or** the GitHub Actions schedule, not both — they
+> keep separate state and would double-send. Once Render works, disable the
+> Actions cron (comment out the `schedule:` block in the workflow).
+>
+> Render's free disk is ephemeral, so `seen_articles.json` / `bot_state.json`
+> reset on each redeploy/restart. That's safe — a reset just re-seeds and sends
+> nothing; only the daily budget counter resets.
+
 ## Deploy on Railway
 
 1. Push this repo to GitHub.

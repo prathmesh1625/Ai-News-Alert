@@ -1,0 +1,37 @@
+# Render Blueprint — free web service running the poll loop.
+# Deploy: render.com → New → Blueprint → pick this repo. Then add the secret
+# values (marked sync:false) in the dashboard, and set up a keep-alive pinger.
+services:
+  - type: web
+    name: ai-news-alert
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python web.py
+    healthCheckPath: /
+    envVars:
+      # Poll every 15 min (the loop runs continuously while the service is awake).
+      - key: POLL_INTERVAL_MINUTES
+        value: "15"
+      - key: LOOKBACK_MINUTES
+        value: "360"
+      # Twilio free-tier guardrails (match the GitHub workflow).
+      - key: MAX_SENDS_PER_DAY
+        value: "16"
+      - key: MAX_NEWS_PER_RUN
+        value: "6"
+      - key: FALLBACK_GAP_HOURS
+        value: "2"
+      # Secrets — set these in the Render dashboard, not in git.
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_WHATSAPP_FROM
+        sync: false
+      - key: TWILIO_WHATSAPP_TO
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: NEWS_API_KEY
+        sync: false
