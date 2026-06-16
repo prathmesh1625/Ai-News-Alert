@@ -26,9 +26,10 @@ LOOKBACK_MINUTES = int(os.getenv("LOOKBACK_MINUTES", "360"))
 
 # ── Twilio free-tier budget ─────────────────────────────────────────────────
 # Hard cap on WhatsApp messages per UTC day (protects the free trial credit).
-MAX_SENDS_PER_DAY = int(os.getenv("MAX_SENDS_PER_DAY", "12"))
+# 16 leaves headroom for fresh news on top of a ~2h fallback stream.
+MAX_SENDS_PER_DAY = int(os.getenv("MAX_SENDS_PER_DAY", "16"))
 # Don't fire more than this many news items in a single run (avoids a burst
 # eating the whole daily cap at once).
 MAX_NEWS_PER_RUN = int(os.getenv("MAX_NEWS_PER_RUN", "6"))
-# Minimum hours between evergreen (existing-tool / tip) fallback sends.
-FALLBACK_GAP_HOURS = float(os.getenv("FALLBACK_GAP_HOURS", "4"))
+# Minimum hours between fallback sends (discovered tool, else a tip).
+FALLBACK_GAP_HOURS = float(os.getenv("FALLBACK_GAP_HOURS", "2"))
