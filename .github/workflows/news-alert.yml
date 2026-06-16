@@ -59,6 +59,9 @@ jobs:
           TWILIO_WHATSAPP_TO: ${{ secrets.TWILIO_WHATSAPP_TO }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           NEWS_API_KEY: ${{ secrets.NEWS_API_KEY }}
+          # Auto-provided by Actions — lifts the GitHub API limit (60 -> 5000/hr)
+          # used by live tool discovery. No secret to configure.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           POLL_INTERVAL_MINUTES: "15"
           # Look back 6h so throttled/delayed runs never miss fresh news.
           LOOKBACK_MINUTES: "360"

@@ -10,6 +10,7 @@ from whatsapp_sender import send, format_message
 from tracker import ArticleTracker
 from state import SendBudget
 import evergreen
+import tool_discovery
 
 logging.basicConfig(
     level=logging.INFO,
@@ -69,9 +70,9 @@ def _send_news(tracker: ArticleTracker, budget: SendBudget) -> int:
 
 def _send_fallback(tracker: ArticleTracker, budget: SendBudget) -> int:
     """
-    Priority 2 (existing tools) then 3 (tips). Only fires when there was no
-    fresh news, the daily budget allows it, and enough time has passed since
-    the last fallback. Sends at most one item per run.
+    Priority 2 (a lesser-known tool discovered live from the web) then 3 (a
+    tip). Only fires when there was no fresh news, the daily budget allows it,
+    and enough time has passed since the last fallback. Sends one item per run.
     """
     if not budget.can_send():
         log.info("Fallback skipped — daily Twilio budget reached.")
@@ -80,9 +81,13 @@ def _send_fallback(tracker: ArticleTracker, budget: SendBudget) -> int:
         log.info("Fallback skipped — too soon since the last one (FALLBACK_GAP_HOURS).")
         return 0
 
-    item = evergreen.pick_unseen(tracker)
+    # Priority 2: discover a lesser-known existing tool from the web.
+    item = tool_discovery.discover_tool(tracker.is_seen)
+    # Priority 3: fall back to a practical AI tip if no fresh tool was found.
     if item is None:
-        log.info("Fallback skipped — every evergreen item already sent this week.")
+        item = evergreen.pick_unseen_tip(tracker)
+    if item is None:
+        log.info("Fallback skipped — no fresh tool and every tip already sent this week.")
         return 0
 
     tracker.mark(item["url"])

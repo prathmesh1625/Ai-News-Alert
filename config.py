@@ -12,6 +12,10 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 NEWS_API_KEY = os.getenv("NEWS_API_KEY", "")
 
+# Optional: raises the GitHub API rate limit used by live tool discovery from
+# 60 to 5000 req/hr. In GitHub Actions, pass the auto-provided secrets.GITHUB_TOKEN.
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
+
 POLL_INTERVAL_MINUTES = int(os.getenv("POLL_INTERVAL_MINUTES", "15"))
 
 # How far back to look for articles each run. Must comfortably exceed the worst

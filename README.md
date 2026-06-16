@@ -10,8 +10,9 @@ item with an LLM (Groq / Llama 3.3), and delivers a clean message via Twilio Wha
 - **Survives cron throttling** — each run looks back `LOOKBACK_MINUTES` (default 6h), so even when
   GitHub Actions delays a scheduled run by hours, no fresh news is missed (the tracker dedups)
 - **Never silent** — when there's no fresh news, it sends fallback value, in priority order:
-  1. fresh AI news / tools, then 2. an **existing tool worth knowing** (Unsloth, Ollama, …),
-  then 3. a **practical AI tip** (e.g. cutting Claude Code token usage)
+  1. fresh AI news / tools, then 2. a **lesser-known existing tool discovered live** by
+  searching GitHub (excludes household names — surfaces the Unsloth-style hidden gems), then
+  3. a **practical AI tip** (e.g. cutting Claude Code token usage)
 - **Twilio-budget aware** — hard daily message cap + spacing between fallbacks keep you on the free tier
 - **Tool vs News** — detects and labels new AI tool/product launches separately from general news
 - **Smart summaries** — 2–3 sentence digest per article via Groq (free tier)
@@ -61,7 +62,8 @@ item with an LLM (Groq / Llama 3.3), and delivers a clean message via Twilio Wha
 | `news_fetcher.py` | RSS + Hacker News + NewsAPI fetching |
 | `summarizer.py` | Keyword pre-filter + Groq summary & tool/news classification |
 | `whatsapp_sender.py` | Twilio message formatting + send |
-| `evergreen.py` | Curated fallback library: existing tools + AI tips (priority 2 & 3) |
+| `tool_discovery.py` | Live discovery of lesser-known AI tools from GitHub + Groq (priority 2) |
+| `evergreen.py` | Curated AI tips, the last-resort fallback (priority 3) |
 | `state.py` | Persisted Twilio daily budget + fallback spacing (`bot_state.json`) |
 | `tracker.py` | Dedup of already-seen articles (and fallback items; recycles weekly) |
 | `config.py` | Loads env vars |
