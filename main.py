@@ -11,6 +11,7 @@ from tracker import ArticleTracker
 from state import SendBudget
 import evergreen
 import tool_discovery
+import saved_tools
 
 logging.basicConfig(
     level=logging.INFO,
@@ -61,6 +62,9 @@ def _send_news(tracker: ArticleTracker, budget: SendBudget) -> int:
             log.info(f"    → WhatsApp sent OK")
             sent_count += 1
             budget.record_send()
+            if result["type"] == "tool":
+                saved_tools.save({**article, "summary": result["summary"],
+                                  "category": result.get("category")})
             time.sleep(SEND_DELAY_SECONDS)
         else:
             log.warning(f"    → WhatsApp send FAILED")
@@ -96,6 +100,8 @@ def _send_fallback(tracker: ArticleTracker, budget: SendBudget) -> int:
         log.info(f"  [FALLBACK {item['type']}] sent: {item['title'][:60]}")
         budget.record_send()
         budget.record_fallback()
+        if item["type"] == "evergreen_tool":
+            saved_tools.save(item)
         return 1
 
     log.warning(f"  [FALLBACK] send FAILED: {item['title'][:60]}")

@@ -1,6 +1,7 @@
 import logging
 from groq import Groq
 from config import GROQ_API_KEY
+import categorize
 
 log = logging.getLogger(__name__)
 client = Groq(api_key=GROQ_API_KEY)
@@ -18,6 +19,9 @@ _AI_KEYWORDS = {
     "ai tool", "ai app", "ai assistant", "ai agent", "launches", "released",
     "new model", "open source", "open-source", "plugin", "api", "feature",
     "update", "version", "available now",
+    # web-scraping / data-extraction tooling (explicitly in scope)
+    "scraping", "scraper", "scrape", "crawler", "crawl", "web data",
+    "data extraction", "extract", "parser", "ocr", "etl",
 }
 
 
@@ -29,15 +33,20 @@ def quick_filter(article: dict) -> bool:
 
 _SYSTEM_PROMPT = (
     "You are a strict AI-news curator for a busy professional who wants to USE "
-    "AI to make their work easier. Only surface high-value items. "
+    "AI (and related tooling) to make their work easier. Only surface high-value items. "
     "Respond in EXACTLY this format:\n"
     "DECISION: <KEEP|SKIP>\n"
     "TYPE: <tool|update|news>\n"
+    "CATEGORY: <one of: " + ", ".join(categorize.CATEGORIES) + ">\n"
     "SUMMARY: <2-3 sentences: what it is and why it's useful>\n\n"
     "KEEP only if the article is one of these AND is genuinely significant:\n"
-    "  • tool   = a NEW AI tool, app, product, or model people can actually use\n"
+    "  • tool   = a NEW tool, app, product, or model people can actually use — this "
+    "INCLUDES web-scraping and data-extraction tools, not just AI/ML ones\n"
     "  • update = a meaningful new version, feature, or capability of an existing AI product/model\n"
     "  • news   = important AI news that affects how people work or what's possible\n\n"
+    "CATEGORY: pick the single best fit for what the item helps you DO. Use "
+    "'web-scraping' or 'data-extraction' for scraping/crawling/parsing/OCR tools, "
+    "and 'other' only if nothing fits.\n\n"
     "SKIP (reply DECISION: SKIP) for low-value noise, even if AI-related:\n"
     "  • funding rounds, valuations, IPOs, stock/share price\n"
     "  • layoffs, hiring, executive/personnel moves\n"
@@ -51,8 +60,9 @@ _SYSTEM_PROMPT = (
 
 def summarize(article: dict) -> dict | None:
     """
-    Returns {"summary": str, "type": "tool"|"update"|"news"} for items worth
-    sending, or None to skip (low value / not AI / error with no usable text).
+    Returns {"summary": str, "type": "tool"|"update"|"news", "category": str}
+    for items worth sending, or None to skip (low value / not AI / error with
+    no usable text).
     """
     title = article.get("title", "")
     description = (article.get("summary", "") or "")[:800]
@@ -64,13 +74,14 @@ def summarize(article: dict) -> dict | None:
                 {"role": "system", "content": _SYSTEM_PROMPT},
                 {"role": "user", "content": f"Title: {title}\n\nDescription: {description}"},
             ],
-            max_tokens=200,
+            max_tokens=220,
             temperature=0.1,
         )
         raw = response.choices[0].message.content.strip()
 
         decision = "KEEP"
         article_type = "news"
+        category = ""
         summary = ""
 
         for line in raw.splitlines():
@@ -81,13 +92,20 @@ def summarize(article: dict) -> dict | None:
                 val = line.split(":", 1)[1].strip().lower()
                 if val in ("tool", "update", "news"):
                     article_type = val
+            elif line.upper().startswith("CATEGORY:"):
+                val = categorize.normalize(line.split(":", 1)[1])
+                if categorize.is_category(val):
+                    category = val
             elif line.upper().startswith("SUMMARY:"):
                 summary = line.split(":", 1)[1].strip()
 
         if decision != "KEEP" or not summary:
             return None
 
-        return {"summary": summary, "type": article_type}
+        if not category:
+            category = categorize.infer_category(f"{title} {summary}")
+
+        return {"summary": summary, "type": article_type, "category": category}
 
     except Exception as e:
         log.error(f"Groq error: {e}")
@@ -95,4 +113,8 @@ def summarize(article: dict) -> dict | None:
         raw = article.get("summary", "")
         if not raw:
             return None
-        return {"summary": raw[:300], "type": "news"}
+        return {
+            "summary": raw[:300],
+            "type": "news",
+            "category": categorize.infer_category(f"{title} {raw}"),
+        }

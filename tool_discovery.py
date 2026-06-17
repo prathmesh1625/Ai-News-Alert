@@ -35,6 +35,12 @@ _QUERIES = [
     "topic:generative-ai stars:200..18000 pushed:>2025-06-01",
     "topic:fine-tuning stars:80..15000",
     "topic:vector-database stars:150..18000",
+    # web-scraping / data-extraction tooling (explicitly in scope)
+    "topic:web-scraping stars:100..18000 pushed:>2025-06-01",
+    "topic:scraper stars:100..18000 pushed:>2025-06-01",
+    "topic:crawler stars:100..15000 pushed:>2025-06-01",
+    "topic:data-extraction stars:60..15000",
+    "topic:web-crawling stars:80..15000 pushed:>2025-06-01",
 ]
 
 # Names everyone already knows — never resurface these as "lesser-known".
