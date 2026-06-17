@@ -85,32 +85,55 @@ def categories() -> list[tuple[str, int]]:
                   key=lambda x: (-x[1], x[0]))
 
 
+def _matched_categories(qslug: str) -> list[str]:
+    """Which known categories a query refers to (against the full vocabulary)."""
+    if not qslug:
+        return []
+    if categorize.is_category(qslug):
+        return [qslug]
+    matched = []
+    for cat in categorize.CATEGORIES:
+        if cat == "other":  # only an exact 'other' counts, never a loose match
+            continue
+        if cat in qslug or qslug in cat:
+            matched.append(cat)
+    return matched
+
+
 def search(query: str) -> list[dict]:
     """
-    Find saved tools matching a free-text query. Combines an exact/loose
-    category match with a keyword scan over title+summary, ranked by relevance.
+    Find saved tools for a query. If the query names a known category, return
+    ONLY that category's tools (even if empty) — so a tool never leaks into a
+    topic it isn't filed under. Keyword search runs only for queries that don't
+    name any category (e.g. a tool's name).
     """
     data = _load()
     if not data:
         return []
 
-    q = query.strip().lower()
-    qslug = categorize.normalize(q)
-    terms = [t for t in re.split(r"\s+", q) if len(t) > 2]
+    cats = _matched_categories(categorize.normalize(query))
+    if cats:
+        results, seen = [], set()
+        for cat in cats:
+            for it in data.get(cat, []):
+                if it.get("url") not in seen:
+                    results.append(it)
+                    seen.add(it.get("url"))
+        return results
+
+    terms = [t for t in re.split(r"\s+", query.strip().lower()) if len(t) > 2]
+    if not terms:
+        return []
 
     scored: dict[str, tuple[int, dict]] = {}
-    for cat, items in data.items():
-        cat_match = qslug and (qslug == cat or qslug in cat or cat in qslug)
+    for items in data.values():
         for it in items:
-            hay = f"{it.get('title','')} {it.get('summary','')} {cat}".lower()
+            hay = f"{it.get('title','')} {it.get('summary','')}".lower()
             score = sum(1 for t in terms if t in hay)
-            if cat_match:
-                score += 5
             if score <= 0:
                 continue
             url = it.get("url", "")
             if url not in scored or score > scored[url][0]:
                 scored[url] = (score, it)
 
-    ranked = sorted(scored.values(), key=lambda x: -x[0])
-    return [it for _, it in ranked]
+    return [it for _, it in sorted(scored.values(), key=lambda x: -x[0])]
