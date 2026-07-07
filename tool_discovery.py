@@ -18,6 +18,7 @@ import requests
 
 from groq import Groq
 from config import GROQ_API_KEY, GITHUB_TOKEN
+import categorize
 
 log = logging.getLogger(__name__)
 _client = Groq(api_key=GROQ_API_KEY)
@@ -41,6 +42,15 @@ _QUERIES = [
     "topic:crawler stars:100..15000 pushed:>2025-06-01",
     "topic:data-extraction stars:60..15000",
     "topic:web-crawling stars:80..15000 pushed:>2025-06-01",
+    # novel / under-the-radar tools that aren't strictly AI — the "something
+    # different" bucket (dev utilities, self-hosted apps, extensions, etc.)
+    "topic:developer-tools stars:150..15000 pushed:>2025-06-01",
+    "topic:productivity stars:150..15000 pushed:>2025-06-01",
+    "topic:self-hosted stars:200..20000 pushed:>2025-06-01",
+    "topic:cli stars:200..15000 pushed:>2025-06-01",
+    "topic:automation stars:150..15000 pushed:>2025-06-01",
+    "topic:chrome-extension stars:100..12000 pushed:>2025-06-01",
+    "topic:no-code stars:100..15000 pushed:>2025-06-01",
 ]
 
 # Names everyone already knows — never resurface these as "lesser-known".
@@ -60,17 +70,24 @@ HEADERS = {
 }
 
 _PICK_PROMPT = (
-    "You help a busy professional discover GENUINELY USEFUL AI/ML tools they "
-    "probably DON'T already know about.\n"
+    "You help a busy professional discover GENUINELY USEFUL, LESSER-KNOWN tools "
+    "they probably DON'T already know about — not only AI/ML, but also "
+    "web-scraping, data-extraction, developer utilities, automation, self-hosted "
+    "apps, browser extensions, and unusual/novel tools that are hard to stumble "
+    "across.\n"
     "You'll get a numbered list of open-source projects (name, stars, description, "
     "topics, url). Pick exactly ONE that is:\n"
     "  • a practical tool/app/library someone can actually USE to get work done,\n"
-    "  • credible and genuinely useful (not a toy, demo, tutorial, course, awesome-list, or paper),\n"
+    "  • genuinely useful and a bit under-the-radar or surprising (not a toy, demo, "
+    "tutorial, course, awesome-list, or paper),\n"
     "  • NOT a household name — exclude anything most developers already know "
     "(Ollama, LangChain, AutoGPT, Stable Diffusion, vLLM, etc.).\n"
-    "Prefer the hidden gem over the obvious popular one.\n"
+    "Prefer the surprising hidden gem over the obvious popular one.\n"
+    "Also classify it into ONE category from this exact list: "
+    + ", ".join(categorize.CATEGORIES) + ".\n"
     "Respond with ONLY a JSON object, no other text:\n"
     '{"index": <number from the list>, "title": "<Tool name — short hook>", '
+    '"category": "<one category from the list>", '
     '"summary": "<2-3 sentences: what it does and why it is useful>"}'
 )
 
@@ -154,12 +171,17 @@ def discover_tool(is_seen) -> dict | None:
             chosen = candidates[int(data["index"])]
             summary = (data.get("summary") or chosen["description"]).strip()
             title = (data.get("title") or chosen["name"]).strip()
+            category = categorize.normalize(data.get("category", ""))
+            if not categorize.is_category(category):
+                category = categorize.infer_category(
+                    f"{title} {summary} {' '.join(chosen['topics'])}")
             return {
                 "url": chosen["url"],
                 "title": title,
                 "summary": summary,
                 "source": f"GitHub · {chosen['stars']}★",
                 "type": "evergreen_tool",
+                "category": category,
             }
         log.warning("Tool discovery: Groq returned no usable pick — using fallback candidate.")
     except Exception as e:
@@ -179,4 +201,6 @@ def discover_tool(is_seen) -> dict | None:
         "summary": chosen["description"],
         "source": f"GitHub · {chosen['stars']}★",
         "type": "evergreen_tool",
+        "category": categorize.infer_category(
+            f"{chosen['name']} {chosen['description']} {' '.join(chosen['topics'])}"),
     }

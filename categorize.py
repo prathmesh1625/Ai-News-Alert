@@ -24,6 +24,9 @@ CATEGORIES = [
     "automation",
     "productivity",
     "design",
+    "dev-tools",
+    "self-hosted",
+    "browser-extension",
     "other",
 ]
 
@@ -33,6 +36,12 @@ _CATEGORY_KEYWORDS: list[tuple[str, list[str]]] = [
                        "puppeteer", "selenium", "web data", "html parsing"]),
     ("data-extraction", ["extract", "parser", "parsing", " ocr", "pdf", "etl",
                           "structured data", "document ai", "table extraction", "screenshot to"]),
+    # Distinctive novel-tool types checked early so broad keywords below don't
+    # shadow them (e.g. a self-hosted "dashboard", a summarizer "extension").
+    ("browser-extension", ["browser extension", "chrome extension", "firefox add-on",
+                           "chrome-extension", "webextension"]),
+    ("self-hosted", ["self-hosted", "self hosted", "selfhosted", "homelab",
+                     "on-premise", "self-host"]),
     ("image-gen", ["image generation", "text-to-image", "diffusion", "midjourney",
                    "dall-e", "dalle", "stable diffusion", "photo", "art generator", "upscal"]),
     ("video", ["video", "text-to-video", "animation", "sora", "runway", "lip sync"]),
@@ -51,6 +60,9 @@ _CATEGORY_KEYWORDS: list[tuple[str, list[str]]] = [
     ("productivity", ["productivity", "note-taking", "notes", "writing assistant",
                       "email", "calendar", "meeting", "summariz", "presentation"]),
     ("design", ["design", "ui ", "ux", "figma", "logo", "slide", "mockup", "wireframe"]),
+    ("dev-tools", ["developer tool", "dev tool", "cli", "command-line", "command line",
+                   "terminal", "sdk", "framework", "devops", "boilerplate", "debugger",
+                   "open-source alternative", "open source alternative"]),
 ]
 
 

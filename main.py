@@ -85,8 +85,11 @@ def _send_fallback(tracker: ArticleTracker, budget: SendBudget) -> int:
         log.info("Fallback skipped — too soon since the last one (FALLBACK_GAP_HOURS).")
         return 0
 
-    # Priority 2: discover a lesser-known existing tool from the web.
-    item = tool_discovery.discover_tool(tracker.is_seen)
+    # Priority 2: discover a lesser-known existing tool from the web. Treat a
+    # tool as "seen" if it's in the 7-day tracker OR already in the permanent
+    # saved-tools index — so the same tool is never surfaced twice.
+    seen = lambda url: tracker.is_seen(url) or saved_tools.is_saved(url)
+    item = tool_discovery.discover_tool(seen)
     # Priority 3: fall back to a practical AI tip if no fresh tool was found.
     if item is None:
         item = evergreen.pick_unseen_tip(tracker)

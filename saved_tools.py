@@ -32,6 +32,14 @@ def _all_urls(data: dict) -> set[str]:
     return {it.get("url") for items in data.values() for it in items}
 
 
+def is_saved(url: str) -> bool:
+    """True if this tool was already sent/saved before (permanent, unlike the
+    7-day tracker) — used to stop the same tool being surfaced again."""
+    if not url:
+        return False
+    return url in _all_urls(_load())
+
+
 def save(item: dict) -> bool:
     """
     Persist a surfaced tool under its category. `item` needs at least url+title;
