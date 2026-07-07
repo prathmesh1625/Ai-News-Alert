@@ -32,6 +32,11 @@ def _all_urls(data: dict) -> set[str]:
     return {it.get("url") for items in data.values() for it in items}
 
 
+def all_tools() -> dict:
+    """The whole {category: [tools]} map — used by the web dashboard."""
+    return _load()
+
+
 def is_saved(url: str) -> bool:
     """True if this tool was already sent/saved before (permanent, unlike the
     7-day tracker) — used to stop the same tool being surfaced again."""

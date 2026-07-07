@@ -14,18 +14,22 @@ every ~5 min — otherwise the service sleeps and the loop stops.
 import os
 import threading
 import logging
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, urlparse
 from xml.sax.saxutils import escape
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from main import main as run_loop
 import commands
+import dashboard
 from config import TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_TO
 
 log = logging.getLogger("web")
 
 # Set to "0" to bypass Twilio signature validation (debugging only).
 _VALIDATE = os.getenv("TWILIO_VALIDATE", "1") != "0"
+
+# Optional: if set, the dashboard requires ?key=<token>. Unset = open.
+_DASHBOARD_TOKEN = os.getenv("DASHBOARD_TOKEN", "").strip()
 
 
 def _twiml(message: str) -> bytes:
@@ -52,10 +56,39 @@ def _signature_ok(handler, url: str, params: dict) -> bool:
 
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
+        parsed = urlparse(self.path)
+        path = parsed.path.rstrip("/") or "/"
+
+        # Plain health text (uptime monitors / manual check).
+        if path == "/health":
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain")
+            self.end_headers()
+            self.wfile.write(b"AI News Alert is running.\n")
+            return
+
+        # Everything else serves the saved-tools dashboard.
+        if _DASHBOARD_TOKEN:
+            key = parse_qs(parsed.query).get("key", [""])[0]
+            if key != _DASHBOARD_TOKEN:
+                self.send_response(401)
+                self.send_header("Content-Type", "text/plain")
+                self.end_headers()
+                self.wfile.write(b"Unauthorized. Append ?key=<your token> to the URL.\n")
+                return
+
+        try:
+            page = dashboard.render()
+        except Exception as e:
+            log.error(f"Dashboard render error: {e}", exc_info=True)
+            self.send_response(500)
+            self.end_headers()
+            return
         self.send_response(200)
-        self.send_header("Content-Type", "text/plain")
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(page)))
         self.end_headers()
-        self.wfile.write(b"AI News Alert is running.\n")
+        self.wfile.write(page)
 
     def do_HEAD(self):
         # Uptime pingers (e.g. UptimeRobot) probe with HEAD by default; without
