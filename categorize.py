@@ -27,6 +27,7 @@ CATEGORIES = [
     "dev-tools",
     "self-hosted",
     "browser-extension",
+    "security",
     "other",
 ]
 
@@ -42,6 +43,11 @@ _CATEGORY_KEYWORDS: list[tuple[str, list[str]]] = [
                            "chrome-extension", "webextension"]),
     ("self-hosted", ["self-hosted", "self hosted", "selfhosted", "homelab",
                      "on-premise", "self-host"]),
+    ("security", ["cybersecurity", "cyber security", "infosec", "pentest",
+                  "penetration testing", "vulnerability", "exploit", "osint",
+                  "malware", "forensic", "red team", "blue team", "ctf",
+                  "reconnaissance", "port scan", "security scanner", "threat",
+                  "encryption tool", "password", "firewall", "nmap", "burp"]),
     ("image-gen", ["image generation", "text-to-image", "diffusion", "midjourney",
                    "dall-e", "dalle", "stable diffusion", "photo", "art generator", "upscal"]),
     ("video", ["video", "text-to-video", "animation", "sora", "runway", "lip sync"]),

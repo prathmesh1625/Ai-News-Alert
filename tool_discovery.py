@@ -51,6 +51,12 @@ _QUERIES = [
     "topic:automation stars:150..15000 pushed:>2025-06-01",
     "topic:chrome-extension stars:100..12000 pushed:>2025-06-01",
     "topic:no-code stars:100..15000 pushed:>2025-06-01",
+    # cybersecurity tooling — lesser-known scanners, recon, OSINT, forensics
+    "topic:security-tools stars:120..18000 pushed:>2025-06-01",
+    "topic:pentesting stars:100..15000 pushed:>2025-06-01",
+    "topic:cybersecurity stars:150..18000 pushed:>2025-06-01",
+    "topic:osint stars:100..15000 pushed:>2025-06-01",
+    "topic:infosec stars:80..15000 pushed:>2025-06-01",
 ]
 
 # Names everyone already knows — never resurface these as "lesser-known".
@@ -62,6 +68,9 @@ _TOO_FAMOUS = {
     "langflow", "flowise", "dify", "n8n", "supabase", "chroma", "milvus",
     "llamaindex", "llama_index", "haystack", "litellm", "ragflow", "anythingllm",
     "openai-cookbook", "transformers.js", " comfyui",
+    # famous security tools — surface lesser-known gems instead
+    "metasploit", "metasploit-framework", "nmap", "wireshark", "sqlmap",
+    "nuclei", "burpsuite", "theharvester", "hashcat", "john",
 }
 
 HEADERS = {
@@ -73,8 +82,8 @@ _PICK_PROMPT = (
     "You help a busy professional discover GENUINELY USEFUL, LESSER-KNOWN tools "
     "they probably DON'T already know about — not only AI/ML, but also "
     "web-scraping, data-extraction, developer utilities, automation, self-hosted "
-    "apps, browser extensions, and unusual/novel tools that are hard to stumble "
-    "across.\n"
+    "apps, browser extensions, cybersecurity/OSINT tools, and unusual/novel "
+    "tools that are hard to stumble across.\n"
     "You'll get a numbered list of open-source projects (name, stars, description, "
     "topics, url). Pick exactly ONE that is:\n"
     "  • a practical tool/app/library someone can actually USE to get work done,\n"
